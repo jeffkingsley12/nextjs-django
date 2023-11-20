@@ -114,12 +114,8 @@ def trading_view(request):
         exchange_info = client.get_exchange_info()
         pairs = [symbol_info['symbol'][:-4] for symbol_info in exchange_info['symbols'] if symbol_info['quoteAsset'] == 'USDT']
 
-        # Analyze the trading pairs
-        signal_coins = analyze(pairs)
-
-        # Check for buy signal
-        if signal_coins:
-            for coin in signal_coins:
+        if signal_coins := analyze(pairs):
+            for _ in signal_coins:
                 execute_buy_order(6.0)  # Buy assets worth 6 USD for each signal coin
 
         # Wait for some time before checking again (adjust the interval as per your preference)
@@ -146,24 +142,23 @@ def transaction_history_view(request):
 
 def save_trade_data(request, symbol):
     url = f'https://api.binance.us/api/v3/trades?symbol={symbol}'
-    
+
     resp = requests.get(url)
 
-    if resp.status_code == 200:
-        trades_data = resp.json()
-        for trade_data in trades_data:
-            trade = Trade(
-                trade_id=trade_data['id'],
-                price=trade_data['price'],
-                quantity=trade_data['qty'],
-                quote_quantity=trade_data['quoteQty'],
-                timestamp=trade_data['time'],
-                is_buyer_maker=trade_data['isBuyerMaker'],
-                is_best_match=trade_data['isBestMatch'],
-                symbol=symbol
-            )
-            trade.save()
-
-        return JsonResponse({'message': 'Trades data saved successfully!'})
-    else:
+    if resp.status_code != 200:
         return JsonResponse({'error': 'Failed to fetch trades data'}, status=resp.status_code)
+    trades_data = resp.json()
+    for trade_data in trades_data:
+        trade = Trade(
+            trade_id=trade_data['id'],
+            price=trade_data['price'],
+            quantity=trade_data['qty'],
+            quote_quantity=trade_data['quoteQty'],
+            timestamp=trade_data['time'],
+            is_buyer_maker=trade_data['isBuyerMaker'],
+            is_best_match=trade_data['isBestMatch'],
+            symbol=symbol
+        )
+        trade.save()
+
+    return JsonResponse({'message': 'Trades data saved successfully!'})
